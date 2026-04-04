@@ -9,21 +9,53 @@ import connectDB from "./db/index.js"
 
 
 dotenv.config({ /* This line configures the dotenv package to load environment variables from a .env file located in the root 
-    directory of the project.
-    import dotenv from "dotenv" ke baad dotenv.config() likhna hota hai taki .env file ke andar jo bhi environment variables 
+      directory of the project.
+   --> import dotenv from "dotenv" ke baad dotenv.config() likhna hota hai taki .env file ke andar jo bhi environment variables 
     defined hai, wo process.env me load ho jaye.
     */
       path: './.env' // This line specifies the path to the .env file, which is located in the root directory of the project.
     });
     
-    connectDB()
+connectDB()
+.then(()=>{ //This line defines a callback function that will be executed when the database connection is successful.
     
+    app.listen(process.env.PORT || 8000, ()=>{
+        console.log(`Server is running at port: ${process.env.PORT}`);
+    })
+})
+.catch((error)=> { //This line defines a callback function that will be executed if there is an error during the database connection process.
+    console.log(`MONGO DB connection failed !!!`, error);
+});
+
+
+// Question: why would we use .then() and .catch() for database connection when we already have try-catch in the connectDB function?
+
+/* The .then() and .catch() methods are used to handle the asynchronous nature of the "connectDB" function, which returns a promise.
+The try-catch block inside the "connectDB" function(in db/index.js) is used to catch any errors that occur during the connection process and log them. 
+However, if an error occurs, the promise returned by connectDB will be rejected, and we need to handle that rejection in the calling code.
+
+-By using .then() and .catch(), we can ensure that if the database connection is successful, we start the server, and if there is 
+an error, we log it appropriately. 
+-This separation of concerns allows us to manage asynchronous operations more effectively and ensures that our application behaves 
+correctly based on the success or failure of the database connection.
+-If you don't use .then(), your Express server might start running before the database is ready, leading to "Database not found" 
+errors for your first users.
+*/
+
+
+
+
+
+
 
 // make sure that package.json me...ki ye update kiya ho
 //  "scripts": {
 //      "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js"
 //   },
     
+
+
+
 
 
 

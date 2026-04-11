@@ -116,8 +116,10 @@ userSchema.methods.generateAccessToken = function () { // Method to generate a J
     }, 
     process.env.ACCESS_TOKEN_SECRET, // Secret key for signing the JWT, which should be kept secure and not exposed publicly.
     {
-      expiresIn : process.env.ACCESS_TOKEN_EXPIRES_IN // Expiration time for the JWT access token, which determines how long the token is valid before it expires and needs to be refreshed.
-      // .env file me access token ke liye expiration time define karna hoga, taki access token automatically expire ho jaye after certain time, for security reasons.
+      expiresIn : process.env.ACCESS_TOKEN_EXPIRES_IN /* Expiration time for the JWT access token, which determines how long the 
+       token is valid before it expires and needs to be refreshed.
+  --> .env file me access token ke liye expiration time define karna hoga, taki access token automatically expire ho jaye after 
+       certain time, for security reasons. */
     }
   )
 }
@@ -131,7 +133,8 @@ return jwt.sign( /*.sign is used to generate a JWT refresh token for the user, w
     }, 
     process.env.REFRESH_TOKEN_SECRET, 
     {
-      expiresIn : process.env.REFRESH_TOKEN_EXPIRES_IN // .env file me refresh token ke liye bhi expiration time define karna hoga, taki refresh token bhi expire ho jaye after certain time, for security reasons.
+      expiresIn : process.env.REFRESH_TOKEN_EXPIRES_IN /* .env file me refresh token ke liye bhi expiration time define karna hoga, 
+                              taki refresh token bhi expire ho jaye after certain time, for security reasons. */
     }
   )
 }
@@ -171,7 +174,7 @@ In this code, JWT is used to generate access tokens and refresh tokens for user 
 The access token is used to authenticate API requests, while the refresh token can be used to obtain new access tokens when the 
 current access token expires. This allows for secure and efficient session management in the application.
 
-Used in login systems of apps/websites, like:
+example -> Used in login systems of apps/websites, like:
     Instagram
     Amazon
     Any backend API (Node.js + Mongoose)
@@ -179,4 +182,22 @@ Whenever you:
   Login once
   Then keep using app without logging again
  That’s where Access + Refresh tokens are used
+
+ */
+
+/*
+--->>>MongoDB Storage for Users
+ What you send:                What MongoDB stores:
+{                             {
+  username: "Hitesh"              _id: ObjectId("63abc..."),  ← auto generated
+  email: "...",                   username: "hitesh",
+  password: "1234"                email: "...",
+}                                 password: "$2b$10$hashed...",  ← encrypted!
+                                  refreshToken: "eyJhb...",
+                                  watchHistory: [],
+                                  createdAt: Date,
+                                  updatedAt: Date
+                              }
+
+DB name: "users"  ← MongoDB auto-pluralizes + lowercase
 */

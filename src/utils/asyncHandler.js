@@ -14,7 +14,7 @@ const asyncHandler = (requestHandler) => {
 }
 
 
-export { asyncHandler } //export default asyncHandler; // Ye line bhi likh sakte hain, but fir import karte waqt curly braces nahi lagane padenge.
+export default asyncHandler; //export default asyncHandler;{ asyncHandler } // Ye line bhi likh sakte hain, but fir import karte waqt curly braces nahi lagane padenge.
 
 // Usage example in a route handler:
 /*

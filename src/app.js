@@ -63,4 +63,31 @@ With cookie-parser, you can easily access cookies sent by the client through req
     e.g. If browser sends: Cookie: token=abc123 --> Access it as: req.cookies.token --> "abc123"
 */
 
-export {app}
+
+
+
+
+//        ******* Lecture 13 :- Route handling and controllers ********
+/*-->This is where you would define your routes and controllers for handling different API endpoints.
+we don't import routers in index.js because we want to keep the index.js file clean and only responsible for starting the server and 
+connecting to the database. so we will import the routers in this app.js file and then use them here.
+-->This way, we can keep our code organized and maintainable by separating concerns. and in production grade we do this way only.
+The index.js file will focus on the application setup and database connection, while the app.js file will handle the routing and controller logic.
+*/
+
+//import routers
+import userRouter from './routes/user.routes.js';
+
+// Route declaration and handling :- this is where we define the routes and associate them with the appropriate controller functions that will handle the logic for each route.
+
+app.use("/api/v1/users", userRouter); /* This line mounts the userRouter on the "/api/v1/users" path, meaning that any requests to 
+endpoints starting with "/api/v1/users" will be handled by the routes defined in the "userRouter". 
+For example, a POST request to "/api/v1/users/register" will be routed to the appropriate handler defined in the userRouter 
+for user registration. */
+
+
+
+
+
+
+export default app; 

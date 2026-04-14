@@ -67,7 +67,7 @@ errors for your first users.
 
 //==> 1st approach of DB connnection:- (upr wala code i.e. 2nd appraoch run ke pehle niche ka comment kr dena )
 
-import mongoose from "mongoose"
+ import mongoose from "mongoose"
 import {DB_NAME} from "./constants.js"
 
 import express from "express";

@@ -87,7 +87,4 @@ for user registration. */
 
 
 
-
-
-
 export default app; 

@@ -4,7 +4,7 @@ import dotenv from "dotenv" /* This line imports the dotenv package, which is us
                             and store them into process.env.
                                 */
 import connectDB from "./db/index.js"
-
+import app from "./app.js"
 
 
 
@@ -67,14 +67,16 @@ errors for your first users.
 
 //==> 1st approach of DB connnection:- (upr wala code i.e. 2nd appraoch run ke pehle niche ka comment kr dena )
 
- import mongoose from "mongoose"
+import mongoose from "mongoose"
 import {DB_NAME} from "./constants.js"
 
 import express from "express";
-const app = express();  /* Create an instance of the Express application, which will be used to define routes and middleware for handling HTTP requests.
+// const app = express();  
+/* Create an instance of the Express application, which will be used to define routes and middleware for handling HTTP requests.
     This line creates a new Express application and assigns it to the app variable. The app variable will be used to set up routes, 
     middleware, and start the server later in the code.  
     */
+
 
 
 /* 
@@ -132,6 +134,7 @@ connecting to a database. By using an IIFE, we can avoid polluting the global sc
  
 
 
+
 /* this Error may faced :--
 1. ----> To start a project  also make sure that package.json me...ki ye update kiya ho
  "scripts": {
@@ -144,6 +147,7 @@ const app = express()    //app.on(), app.listen() bina express ke thodi chlenge
 3. always npm run dev from the root directory of the project, not from src folder. Otherwise, it will not find the .env file and 
 throw an error.
 */
+
 
 
 
@@ -162,7 +166,6 @@ the application starts, without needing to call a separate function. This ensure
 database connection is established before the server starts listening for requests. It also 
 keeps the connection logic self-contained and prevents it from being accidentally called 
 multiple times or from other parts of the code, which could lead to unintended consequences."
-
 
 */
 

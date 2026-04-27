@@ -1,9 +1,23 @@
 import {Router} from 'express';
 import { registerUser } from '../controllers/user.controller.js';
 
+import upload from '../middlewares/multer.middleware.js'; // This line imports the multer middleware from the specified path. The multer middleware is used for handling file uploads in Express.js applications.
 const router = Router();
 
-router.route ("/register").post(registerUser);
+router.route ("/register").post(
+    //upload middleware se pehle humne registerUser controller function ko call kiya tha, lekin ab hum upload middleware ko pehle 
+    // call karenge taki file upload ho jaye aur uske baad hi registerUser controller function execute ho.
+    upload.fields([ // This line specifies that we are expecting multiple files to be uploaded with the request, and it defines the fields for those files.
+        {
+            name : "avatar", // This field is for uploading a single avatar image.
+            maxCount : 1 // This property indicates that only one file should be uploaded for the "avatar" field.
+        },  
+        {
+            name : "coverImages", // This field is for uploading  cover images.
+            maxCount : 1 // This property indicates that only one file should be uploaded for the "coverImages" field.
+        }
+    ]),
+    registerUser);
 
 export default router;
 

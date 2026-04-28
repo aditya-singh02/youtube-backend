@@ -85,15 +85,14 @@ and arrow functions do not have their own "this" context.
 -->return next() is important to avoid hanging the save operation and to ensure that the document is saved to the database after the password has been hashed.
 
  */
-userSchema.pre("save", async function (next) { // Pre-save hook to hash the password just before saving the user document to the database.
-  if(!this.isModified("password")) return next(); // If password is not modified, skip hashing
+userSchema.pre("save", async function () { // Pre-save hook to hash the password just before saving the user document to the database.
+  if(!this.isModified("password")) return ; // If password is not modified, skip hashing
 
   this.password = await bcrypt.hash(this.password,10); /* Hash the password with a salt round of 10 before saving the user document to the database. 
   -->await is used to wait for the hashing process to complete before proceeding to the next step, ensuring that the password is 
   securely hashed before being stored in the database. 
   10 is the number of salt rounds, which determines the computational cost of hashing the password. A higher number means more security but also more time to hash. */
-  
-  next();
+  //  next();
 });
 
 
@@ -141,6 +140,7 @@ return jwt.sign( /*.sign is used to generate a JWT refresh token for the user, w
 
 
 export const User = mongoose.model("User", userSchema);
+
 
 
 

@@ -13,7 +13,7 @@ router.route ("/register").post(
             maxCount : 1 // This property indicates that only one file should be uploaded for the "avatar" field.
         },  
         {
-            name : "coverImages", // This field is for uploading  cover images.
+            name : "coverImage", // This field is for uploading  cover images.
             maxCount : 1 // This property indicates that only one file should be uploaded for the "coverImages" field.
         }
     ]),

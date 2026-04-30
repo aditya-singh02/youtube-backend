@@ -1,7 +1,9 @@
 import {Router} from 'express';
-import { registerUser } from '../controllers/user.controller.js';
+import { loginUser, registerUser, logoutUser } from '../controllers/user.controller.js';
 
 import upload from '../middlewares/multer.middleware.js'; // This line imports the multer middleware from the specified path. The multer middleware is used for handling file uploads in Express.js applications.
+import { verifJWT } from '../middlewares/auth.middleware.js';
+
 const router = Router();
 
 router.route ("/register").post(
@@ -19,7 +21,22 @@ router.route ("/register").post(
     ]),
     registerUser);
 
+    //--> lecture 15 
+router.route("/login").post(loginUser)
+
+//secured route for logout, jisme user ko apne refresh token ko invalidate karna hota hai taki wo future me use na kar sake.
+router.route("/logout").post(verifyJWT, logoutUser) /*  ye route logout ke liye hai, jisme user apne refresh token ko invalidate kar sakta hai taki wo future me use na kar sake.
+
+-->working of logout route: jab user logout route ko access karta hai toh pehle verifyJWT middleware execute hota hai, jisme user ke JWT 
+token ko verify kiya jata hai. agar token valid hai toh user ko access mil jata hai aur logoutUser controller function execute hota 
+hai, jisme user ke refresh token ko invalidate kar diya jata hai taki wo future me use na kar sake. is tarah se hum ensure karte hai 
+ki jab user logout kare toh uska refresh token bhi invalid ho jaye, taki security maintain rahe.
+ */
+//-> lecture 15 ka end
+
 export default router;
+
+
 
 /*--> This code snippet defines a route for user registration using Express.js.
 1. We import the Router class from the Express library and the registerUser controller function from the user.controller.js file.

@@ -7,14 +7,14 @@
 //--> so idea was ki  jb user login krta hai toh uske pass ek JWT token hota hai, aur har baar jab wo koi protected route access krta hai toh hum us token ko verify krte hai.
 // agar token valid hai toh user ko access mil jata hai, aur agar token invalid hai toh user ko unauthorized response milta hai.
 
-import asynvHandler from "../utils/asyncHandler.js";
+import asyncHandler from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import jwt from "jsonwebtoken";
 import {User } from "../models/user.models.js ";
 
-/*          verifJWT = asyncHandler(async (req, res, next) --> isme jab "res" use na hora ho toh hum usko _ se replace kar dete hai --> its production level code writing convention, taki hume pata chale ki ye variable use nahi hora hai.  */
+/*          verifyJWT = asyncHandler(async (req, res, next) --> isme jab "res" use na hora ho toh hum usko _ se replace kar dete hai --> its production level code writing convention, taki hume pata chale ki ye variable use nahi hora hai.  */
 //                                               |
-export const verifJWT = asyncHandler(async (req, _, next) => {
+export const verifyJWT = asyncHandler(async (req,_, next) => {
   try {
       // Step 1: Get token from cookies
       const token = req.cookies?.accessToken || req.headers("Authorization")?.replace("Bearer ", "") 

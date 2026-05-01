@@ -1,8 +1,8 @@
 import {Router} from 'express';
-import { loginUser, registerUser, logoutUser } from '../controllers/user.controller.js';
+import { loginUser, registerUser, logoutUser , refreshAccessToken } from '../controllers/user.controller.js';
 
 import upload from '../middlewares/multer.middleware.js'; // This line imports the multer middleware from the specified path. The multer middleware is used for handling file uploads in Express.js applications.
-import { verifJWT } from '../middlewares/auth.middleware.js';
+import { verifyJWT } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -34,6 +34,10 @@ ki jab user logout kare toh uska refresh token bhi invalid ho jaye, taki securit
  */
 //-> lecture 15 ka end
 
+// lecture 16 (part) ka start
+router.route("/refresh-token").post(refreshAccessToken) // ye route refresh token ke basis par naya access token generate karne ke liye hai, taki user ko baar baar login na karna pade jab bhi uska access token expire ho jaye.
+
+ 
 export default router;
 
 

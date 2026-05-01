@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken";
+
 
 //                                              ********lecture 12********
 // Create a new user
@@ -346,7 +348,38 @@ const loginUser = asyncHandler(async (req, res) => {
    const { username, email, password } = req.body;
 
    // Step 2: Check required fields
-   if (!username || !email) { // agar username ya email kisi se login krna ho toh dono ko check krna padega, agar dono me se koi bhi ek field missing hai toh hum error throw karenge
+
+   /* if(!(username || email))  ---> !(username || email) mtalab hai ki agar username ya email me se koi bhi ek field provided nahi hai, toh condition true ho jayegi.
+   is condition ka matlab hai ki agar user ne login karte waqt username ya email me se koi bhi ek field provide nahi kiya hai, toh 
+   hum unko error response denge jisme message hoga "Username or email is required". 
+   Ye check isliye important hai taki hum ensure kar sake ki user login karne ke liye kam se kam username ya email me se koi ek field 
+   provide kare, taki hum usko database me find kar sake aur login process ko aage badha sake. 
+   Agar dono fields missing hai toh user ko error response milega, taki wo samajh sake ki unko login karne ke liye username ya email 
+   me se koi ek field provide karna zaroori hai. 
+   Is tarah se hum input validation karte hai, taki humare application me sahi data hi aaye aur hum uske basis par aage ke operations
+    perform kar sake.
+       --->     (!username || !email ) y galat hai ...correct is !(username || email) 
+
+   --> !(username || email) vs (!username && !email) => 
+
+   !(username || email)                                                 (!username && !email)
+→ Negation of (username OR email)                                                → True if BOTH username and email are missing
+→ True if BOTH username and email are missing                                    → False if EITHER username or email is provided
+→ False if EITHER username or email is provided
+
+--->>if we want ki username ya email me se koi ek field se login krna hai then we can use either of the conditions, but if we want ki dono fields me se koi ek field provide karna zaroori hai then we should use (!username && !email) condition.
+and in our case, we want ki username ya email me se koi ek field provide karna zaroori hai, toh hum (!username && !email) 
+condition use karenge taki hum ensure kar sake ki user ne login karne ke liye kam se kam username ya email me se koi ek field 
+provide kiya hai.
+
+---->and if we use !(username || email) condition, toh agar user ne username provide kiya hai aur email nahi diya hai, toh condition 
+false ho jayegi aur user ko error response milega, jo ki galat hoga kyunki user ne username provide kiya hai.
+   */
+
+   if (!username && !email) { /* This line is checking if both the "username" and "email" fields are not provided in the request body.
+     If neither of them is provided, it throws an ApiError with a status code of 400 (Bad Request) and a message indicating that 
+    either the username or email is required. This error will be caught by the asyncHandler and passed to the next middleware for error handling. */
+
       //agar sirf username se login krna hai toh username ko check karenge, agar sirf email se login krna hai toh email ko check karenge, agar dono se login krna hai toh dono ko check karenge
       throw new ApiError(400, "Username or email is required");
    }
@@ -475,14 +508,108 @@ const logoutUser = asyncHandler(async (req,res) => {
 })
 
 
+// ***************                                    lecture 16(part)***************
 
+// yha hum refresh token ke basis par naya access token generate karenge, taki user ko baar baar login na karna pade jab bhi uska access token expire ho jaye.
+
+/* working of this controller ye hai ki jab bhi user ka access token expire ho jata hai, toh frontend automatically refresh token 
+ke sath ek request bhejta hai is controller ko, aur agar refresh token valid hota hai toh hum uske basis par naya access token 
+generate kar ke frontend ko bhej dete hai, taki user ko dobara login na karna pade.
+ */
+const refreshAccessToken = asyncHandler(async (req, res) =>{
+               //1. Get refresh token from cookies OR request body
+               // 2. Check if refresh token exists
+               // 3. Decode the refresh token (verify with JWT)
+               // 4. Find user from decoded token
+               // 5. Compare incoming token with DB stored token
+               // 6. If match → generate new access + refresh tokens
+               // 7. Send new tokens in cookies and response
+
+//--> step 1: Get refresh token from cookies OR request body
+   const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken; 
+/* This line is checking for the presence of a refresh token in two places:
+      1. req.cookies.refreshToken: This checks if the refresh token is present in the cookies sent by the client. If the client 
+                                    has stored the refresh token as a cookie, it will be accessed here.
+      2. req.body.refreshToken: If the refresh token is not found in the cookies, this part checks if it is provided in the 
+                                 request body (e.g., as part of a JSON payload).
+
+The logical OR operator (||) is used to return the first truthy value found. So, if the refresh token is present in the cookies, 
+it will be assigned to incomingRefreshToken. If it is not present in the cookies but is provided in the request body, then that value 
+will be assigned to incomingRefreshToken. If neither source provides a refresh token, incomingRefreshToken will be undefined. */
+
+// Step 2: Check if refresh token exists
+   if(!incomingRefreshToken) {  
+      throw new ApiError(401, "Unauthorized: Refresh token is missing");
+   }
+
+   try {
+      // Step 3: Decode the refresh token (verify with JWT)
+     const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET); /* 
+    This line is using the "jwt.verify" method from the jsonwebtoken library to decode and verify the incoming refresh token.
+   - incomingRefreshToken: This is the refresh token that we received from the client (either from cookies or request body).
+   - process.env.REFRESH_TOKEN_SECRET: This is the secret key that we use to sign and verify the JWT tokens. It should be stored securely in environment variables and not hardcoded in the code.
+   
+   --> The "jwt.verify" method will decode the token and verify its signature using the provided secret key. If the token is valid, 
+      it will return the decoded payload (which typically contains user information and token metadata). 
+      If the token is invalid or expired, it will throw an error, which we can catch and handle appropriately.  
+      */
+   
+      // Step 4: Find user from decoded token
+      const user = await User.findById(decodedToken?.userId); /* This line is using the "User" model to find a user in the database based on the user ID that was extracted from the decoded refresh token.
+   - decodedToken?.userId: This is the user ID that was included in the payload of the refresh token when it was originally generated. 
+                              It is typically stored in the token to identify which user the token belongs to.
+   
+   - User.findById: This method is used to query the database and find a user document that matches the provided user ID. If a user with
+                      that ID exists, it will return the user document; otherwise, it will return null. */
+   
+      // Step 5: Compare incoming token with DB stored token 
+      if (!user) {   
+         throw new ApiError(401, "Invalid refresh token: User not found");
+      }
+   
+      // Step 6: If match → generate new access + refresh tokens
+      if (incomingRefreshToken !== user?.refreshToken) {  /* This line is comparing the "refresh token" that was sent by the client 
+            (incomingRefreshToken) with the refresh token that is stored in the "user's" document in the database (user.refreshToken).
+   
+      -->   If the tokens do not match, it means that the incoming refresh token is invalid or has been tampered with, and we should not generate new tokens 
+         for this request. In such a case, we throw an ApiError with a status cod e of 401 (Unauthorized) and a message indicating that the 
+         refresh token is invalid. This error will be caught by the asyncHandler and passed to the next middleware for error handling. */
+         throw new ApiError(401, "Refresh token is expired or used");
+      }
+    
+      // Step 6: Generate new tokens
+      //jb bhi cookies set karte hai, toh hume options bhi set karne padte hai taki wo cookies secure ho, aur client side scripts unko access na kar sake.
+      //---> "options" object is typically used when setting cookies in backend frameworks like Express.js. 
+       const options = { // ye options hum cookies ko set karne ke liye use karenge, taki hum refresh ke time pe naye access token aur refresh token dono ko securely set kar sake.
+         httpOnly: true,
+         secure: true
+       };
+   
+       const { accessToken, newRefreshToken } = await generateAccessAndRefreshTokens(user._id);
+   
+      // Step 7: Send new tokens in cookies and response
+      return res.status(200)
+      .cookie("accessToken", accessToken, options)  // set new access token in cookie
+      .cookie("refreshToken", newRefreshToken, options)  // set new refresh token in cookie
+      .json(
+         new ApiResponse(200, 
+            { accessToken, refreshToken: newRefreshToken }, 
+            "Access token refreshed successfully"));
+   } catch (error) {
+      throw new ApiError(401, error.message || "Invalid refresh token"); 
+   }
+})
+
+
+ 
 
 
 
 export {
    registerUser,
    loginUser,
-   logoutUser
+   logoutUser,
+   refreshAccessToken
 }
 
 

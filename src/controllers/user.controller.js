@@ -428,35 +428,35 @@ false ho jayegi aur user ko error response milega, jo ki galat hoga kyunki user 
    }
 
    // Step 9: Return success response with user data and tokens
-    /* -->A cookie is a small data stored in the browser that helps the server recognize and remember the user. 
-    How a Cookie Works:- 
-         The Handshake: You log in to a site. The server verifies you.
-         The Tagging: The server sends a response that includes a header: Set-Cookie: sessionID=123.
-         The Storage: Your browser (Safari, in your case) saves this small text file locally.
-         The Memory: Every time you click a link on that same site, the browser automatically attaches that cookie: Cookie: sessionID=123.
-         The Recognition: The server sees the tag and says, "Oh, it's Aditya! I don't need to ask for his password again."
-    */
+   /* -->A cookie is a small data stored in the browser that helps the server recognize and remember the user. 
+   How a Cookie Works:- 
+        The Handshake: You log in to a site. The server verifies you.
+        The Tagging: The server sends a response that includes a header: Set-Cookie: sessionID=123.
+        The Storage: Your browser (Safari, in your case) saves this small text file locally.
+        The Memory: Every time you click a link on that same site, the browser automatically attaches that cookie: Cookie: sessionID=123.
+        The Recognition: The server sees the tag and says, "Oh, it's Aditya! I don't need to ask for his password again."
+   */
    return res.status(200) // 200 OK status code indicates that the login request was successful and the server is returning the requested data (user information and tokens) in the response body.
-   .cookie("accessToken", accessToken, options)  /*  iska matalb hai ki hum response me access token ko ek cookie ke roop me bhej rahe
+      .cookie("accessToken", accessToken, options)  /*  iska matalb hai ki hum response me access token ko ek cookie ke roop me bhej rahe
      hai, jiska naam "accessToken" hai, aur usme accessToken variable ka value store kiya gaya hai. Ye cookie client ke browser me 
     store ho jayegi aur har subsequent request ke sath automatically send ho jayegi, allowing the server to authenticate the user
      based on the access token. */
-   .cookie("refreshToken", refreshToken, options) /*  similarly, this line is sending the refresh token as a cookie in the response, 
+      .cookie("refreshToken", refreshToken, options) /*  similarly, this line is sending the refresh token as a cookie in the response, 
    with the name "refreshToken" and the value stored in the refreshToken variable. This allows the client to securely store the 
  refresh token in their browser and use it for future authentication requests when the access token expires. */
-   .json( // ab hum response body me user data aur tokens ko JSON format me bhej rahe hai, taki frontend easily is data ko consume kar sake.
-      //This is the actual message the frontend "sees" and uses to display information.
-      new ApiResponse(200, 
-        { 
-        user: loggedInUser, accessToken, refreshToken  // hum user data aur tokens ko ek object ke roop me bhej rahe hai, jise frontend easily access kar sakta hai.
-      },
-         "User logged in successfully"
+      .json( // ab hum response body me user data aur tokens ko JSON format me bhej rahe hai, taki frontend easily is data ko consume kar sake.
+         //This is the actual message the frontend "sees" and uses to display information.
+         new ApiResponse(200,
+            {
+               user: loggedInUser, accessToken, refreshToken  // hum user data aur tokens ko ek object ke roop me bhej rahe hai, jise frontend easily access kar sakta hai.
+            },
+            "User logged in successfully"
+         )
       )
-   )
 })
 
 //------>>>>>logout user
-const logoutUser = asyncHandler(async (req,res) => {
+const logoutUser = asyncHandler(async (req, res) => {
 
    /* --> sbse pehli problem: how do we know which user is logging out? mtlb user identification kaise karenge?
      (logIn krne me toh hum username/email + password se user identify kar lete hai, but logout me user sirf logout button pe click 
@@ -471,44 +471,44 @@ const logoutUser = asyncHandler(async (req,res) => {
       (yaani usko database se remove kar denge), taki wo future me use na kar sake. Is tarah se hum ensure karenge ki jab user logout 
       kare toh uska refresh token bhi invalid ho jaye, taki security maintain rahe.
    */
-// jese req.body ka access hota hai loginUser controller me, waise hi req.user ka access hoga logoutUser controller me, kyunki dono controllers me verifyJWT middleware execute hoga jo req.user ko set karega.
+   // jese req.body ka access hota hai loginUser controller me, waise hi req.user ka access hoga logoutUser controller me, kyunki dono controllers me verifyJWT middleware execute hoga jo req.user ko set karega.
    //   req.user._id -->  is line se hum user id ko access kar sakte hai, jisse hum database me us user ke refresh token ko invalidate kar sakte hai.
 
-     await  User.findByIdAndUpdate( // "findByIdAndUpdate" method is used to find a user by their unique identifier (in this case, req.user._id) and update their document in the database.
-         req.user._id,  // which user to find
-         {
-            $set: { // $set operator is used to update the value of a field in a document. In this case, we are updating the "refreshToken" field of the user document with the specified user ID (req.user._id) and setting it to undefined.
-               refreshToken: undefined // is line se hum user ke refresh token ko undefined set kar denge, jisse wo future me use nahi kar sakta.
-            }
-         },
-         {
-            new: true, // { // return NEW document (after update)}--> This option ensures that the updated document is returned after the update operation is performed. If set to false, the original document before the update would be returned.
+   await User.findByIdAndUpdate( // "findByIdAndUpdate" method is used to find a user by their unique identifier (in this case, req.user._id) and update their document in the database.
+      req.user._id,  // which user to find
+      {
+         $set: { // $set operator is used to update the value of a field in a document. In this case, we are updating the "refreshToken" field of the user document with the specified user ID (req.user._id) and setting it to undefined.
+            refreshToken: undefined // is line se hum user ke refresh token ko undefined set kar denge, jisse wo future me use nahi kar sakta.
          }
-       )
-
-   
-      const options = { // ye options hum cookies ko set karne ke liye use karenge, taki hum logout ke time pe access token aur refresh token dono ko expire kar sake.
-         httpOnly: true, 
-         secure: true 
+      },
+      {
+         new: true, // { // return NEW document (after update)}--> This option ensures that the updated document is returned after the update operation is performed. If set to false, the original document before the update would be returned.
       }
-          /* --> Why options here? 
-         When logging out, we want to clear the authentication cookies (accessToken and refreshToken) from the client's browser.
-         To clear a cookie, we can set its value to an empty string and set its expiration date to a past date. 
-         The options object allows us to specify the same security settings (httpOnly and secure) for the cookies we are clearing, ensuring that they are removed securely from the client's browser. */
+   )
 
-          return res
-            .status(200)
-/* .clearCookie() method is used to clear the specified cookie from the client's browser. In this case, we are clearing the 
- "accessToken" cookie by setting its value to an empty string and applying the same security options (httpOnly and secure) 
- that were used when the cookie was originally set. 
- This ensures that the cookie is removed securely from the client's browser, effectively logging the user out by invalidating their access token. */
-            .clearCookie("accessToken", options)  // clear from browser
-            .clearCookie("refreshToken", options)  // clear from browser
-            .json(new ApiResponse(200, {}, "User logged out")); 
+
+   const options = { // ye options hum cookies ko set karne ke liye use karenge, taki hum logout ke time pe access token aur refresh token dono ko expire kar sake.
+      httpOnly: true,
+      secure: true
+   }
+   /* --> Why options here? 
+  When logging out, we want to clear the authentication cookies (accessToken and refreshToken) from the client's browser.
+  To clear a cookie, we can set its value to an empty string and set its expiration date to a past date. 
+  The options object allows us to specify the same security settings (httpOnly and secure) for the cookies we are clearing, ensuring that they are removed securely from the client's browser. */
+
+   return res
+      .status(200)
+      /* .clearCookie() method is used to clear the specified cookie from the client's browser. In this case, we are clearing the 
+       "accessToken" cookie by setting its value to an empty string and applying the same security options (httpOnly and secure) 
+       that were used when the cookie was originally set. 
+       This ensures that the cookie is removed securely from the client's browser, effectively logging the user out by invalidating their access token. */
+      .clearCookie("accessToken", options)  // clear from browser
+      .clearCookie("refreshToken", options)  // clear from browser
+      .json(new ApiResponse(200, {}, "User logged out"));
 })
 
 
-// ***************                                    lecture 16(part)***************
+// ***************                                    lecture 16***************
 
 // yha hum refresh token ke basis par naya access token generate karenge, taki user ko baar baar login na karna pade jab bhi uska access token expire ho jaye.
 
@@ -516,35 +516,35 @@ const logoutUser = asyncHandler(async (req,res) => {
 ke sath ek request bhejta hai is controller ko, aur agar refresh token valid hota hai toh hum uske basis par naya access token 
 generate kar ke frontend ko bhej dete hai, taki user ko dobara login na karna pade.
  */
-const refreshAccessToken = asyncHandler(async (req, res) =>{
-               //1. Get refresh token from cookies OR request body
-               // 2. Check if refresh token exists
-               // 3. Decode the refresh token (verify with JWT)
-               // 4. Find user from decoded token
-               // 5. Compare incoming token with DB stored token
-               // 6. If match → generate new access + refresh tokens
-               // 7. Send new tokens in cookies and response
+const refreshAccessToken = asyncHandler(async (req, res) => {
+   //1. Get refresh token from cookies OR request body
+   // 2. Check if refresh token exists
+   // 3. Decode the refresh token (verify with JWT)
+   // 4. Find user from decoded token
+   // 5. Compare incoming token with DB stored token
+   // 6. If match → generate new access + refresh tokens
+   // 7. Send new tokens in cookies and response
 
-//--> step 1: Get refresh token from cookies OR request body
-   const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken; 
-/* This line is checking for the presence of a refresh token in two places:
-      1. req.cookies.refreshToken: This checks if the refresh token is present in the cookies sent by the client. If the client 
-                                    has stored the refresh token as a cookie, it will be accessed here.
-      2. req.body.refreshToken: If the refresh token is not found in the cookies, this part checks if it is provided in the 
-                                 request body (e.g., as part of a JSON payload).
+   //--> step 1: Get refresh token from cookies OR request body
+   const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+   /* This line is checking for the presence of a refresh token in two places:
+         1. req.cookies.refreshToken: This checks if the refresh token is present in the cookies sent by the client. If the client 
+                                       has stored the refresh token as a cookie, it will be accessed here.
+         2. req.body.refreshToken: If the refresh token is not found in the cookies, this part checks if it is provided in the 
+                                    request body (e.g., as part of a JSON payload).
+   
+   The logical OR operator (||) is used to return the first truthy value found. So, if the refresh token is present in the cookies, 
+   it will be assigned to incomingRefreshToken. If it is not present in the cookies but is provided in the request body, then that value 
+   will be assigned to incomingRefreshToken. If neither source provides a refresh token, incomingRefreshToken will be undefined. */
 
-The logical OR operator (||) is used to return the first truthy value found. So, if the refresh token is present in the cookies, 
-it will be assigned to incomingRefreshToken. If it is not present in the cookies but is provided in the request body, then that value 
-will be assigned to incomingRefreshToken. If neither source provides a refresh token, incomingRefreshToken will be undefined. */
-
-// Step 2: Check if refresh token exists
-   if(!incomingRefreshToken) {  
+   // Step 2: Check if refresh token exists
+   if (!incomingRefreshToken) {
       throw new ApiError(401, "Unauthorized: Refresh token is missing");
    }
 
    try {
       // Step 3: Decode the refresh token (verify with JWT)
-     const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET); /* 
+      const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET); /* 
     This line is using the "jwt.verify" method from the jsonwebtoken library to decode and verify the incoming refresh token.
    - incomingRefreshToken: This is the refresh token that we received from the client (either from cookies or request body).
    - process.env.REFRESH_TOKEN_SECRET: This is the secret key that we use to sign and verify the JWT tokens. It should be stored securely in environment variables and not hardcoded in the code.
@@ -553,7 +553,7 @@ will be assigned to incomingRefreshToken. If neither source provides a refresh t
       it will return the decoded payload (which typically contains user information and token metadata). 
       If the token is invalid or expired, it will throw an error, which we can catch and handle appropriately.  
       */
-   
+
       // Step 4: Find user from decoded token
       const user = await User.findById(decodedToken?.userId); /* This line is using the "User" model to find a user in the database based on the user ID that was extracted from the decoded refresh token.
    - decodedToken?.userId: This is the user ID that was included in the payload of the refresh token when it was originally generated. 
@@ -561,12 +561,12 @@ will be assigned to incomingRefreshToken. If neither source provides a refresh t
    
    - User.findById: This method is used to query the database and find a user document that matches the provided user ID. If a user with
                       that ID exists, it will return the user document; otherwise, it will return null. */
-   
+
       // Step 5: Compare incoming token with DB stored token 
-      if (!user) {   
+      if (!user) {
          throw new ApiError(401, "Invalid refresh token: User not found");
       }
-   
+
       // Step 6: If match → generate new access + refresh tokens
       if (incomingRefreshToken !== user?.refreshToken) {  /* This line is comparing the "refresh token" that was sent by the client 
             (incomingRefreshToken) with the refresh token that is stored in the "user's" document in the database (user.refreshToken).
@@ -576,40 +576,242 @@ will be assigned to incomingRefreshToken. If neither source provides a refresh t
          refresh token is invalid. This error will be caught by the asyncHandler and passed to the next middleware for error handling. */
          throw new ApiError(401, "Refresh token is expired or used");
       }
-    
+
       // Step 6: Generate new tokens
       //jb bhi cookies set karte hai, toh hume options bhi set karne padte hai taki wo cookies secure ho, aur client side scripts unko access na kar sake.
       //---> "options" object is typically used when setting cookies in backend frameworks like Express.js. 
-       const options = { // ye options hum cookies ko set karne ke liye use karenge, taki hum refresh ke time pe naye access token aur refresh token dono ko securely set kar sake.
+      const options = { // ye options hum cookies ko set karne ke liye use karenge, taki hum refresh ke time pe naye access token aur refresh token dono ko securely set kar sake.
          httpOnly: true,
          secure: true
-       };
-   
-       const { accessToken, newRefreshToken } = await generateAccessAndRefreshTokens(user._id);
-   
+      };
+
+      const { accessToken, newRefreshToken } = await generateAccessAndRefreshTokens(user._id);
+
       // Step 7: Send new tokens in cookies and response
       return res.status(200)
-      .cookie("accessToken", accessToken, options)  // set new access token in cookie
-      .cookie("refreshToken", newRefreshToken, options)  // set new refresh token in cookie
-      .json(
-         new ApiResponse(200, 
-            { accessToken, refreshToken: newRefreshToken }, 
-            "Access token refreshed successfully"));
+         .cookie("accessToken", accessToken, options)  // set new access token in cookie
+         .cookie("refreshToken", newRefreshToken, options)  // set new refresh token in cookie
+         .json(
+            new ApiResponse(200,
+               { accessToken, refreshToken: newRefreshToken },
+               "Access token refreshed successfully"));
    } catch (error) {
-      throw new ApiError(401, error.message || "Invalid refresh token"); 
+      throw new ApiError(401, error.message || "Invalid refresh token");
    }
 })
 
 
- 
+
+// ******************                                    lecture 17***************
+
+// yha hum user ke current password ko change karne ka functionality implement karenge, taki user apna password update kar sake jab bhi wo chahe.
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+   // 1. Get oldPassword + newPassword from req.body
+   // 2. Find user (from req.user via middleware)
+   // 3. Verify oldPassword using isPasswordCorrect()
+   // 4. If wrong → throw error
+   // 5. Set user.password = newPassword
+   // 6. user.save({ validateBeforeSave: false })
+   //    → pre-save hook auto-hashes new password!
+   // 7. Return success response
+
+   // Step 1: Get oldPassword + newPassword from req.body
+   const { oldPassword, newPassword } = req.body; /* This line is using destructuring assignment to extract the "oldPassword" and "newPassword" fields from the request body (req.body).
+   /* --> if we want ki password changed krte time "newPassword" or ek confirmPassword field bhi ho jisme user se new password ko confirm
+    karne ke liye bola jaye, toh hum yaha req.body se confirmPassword bhi extract kar sakte hai, aur usko newPassword ke sath compare
+     kar sakte hai, taki hum ensure kar sake ki user ne new password ko sahi se confirm kiya hai.
+
+               --> const { oldPassword, newPassword, confirmPassword } = req.body;
+               --> if(newPassword !== confirmPassword) {
+                     throw new ApiError(400, "New password and confirm password do not match");
+                  }
+    */
 
 
+   // Step 2: Find user from DB (from req.user via middleware)
+   const user = await User.findById(req.user?._id); // yha hum req.user se user id ko access kar rahe hai, jisse hum database me us user ko find kar sake. (req.user is set by the verifyJWT middleware that runs before this controller, so we can be sure that req.user contains the authenticated user's information)
+
+   // Step 3: Verify oldPassword using isPasswordCorrect()
+   const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword); /* This line is using the "isPasswordCorrect" method defined in the User model to check if the provided "oldPassword" matches the user's current password stored in the database. The method will return true if the passwords match and false if they do not. */
+
+   // Step 4: If wrong → throw error
+   if (!isOldPasswordCorrect) {
+      throw new ApiError(400, "Old password is incorrect");
+   }
+
+   // Step 5: Set user.password = newPassword
+   user.password = newPassword; // yha hum user ke password field ko new password se update kar rahe hai.
+
+   // Step 6: user.save({ validateBeforeSave: false })
+   await user.save({ validateBeforeSave: false }); /* ye line user document ko save karne ke liye use kiya jata hai. Jab hum "user.password" 
+   ko update karte hai, toh mongoose ke pre-save hook me defined logic automatically execute hota hai, jisme new password ko hash 
+   kiya jata hai before saving to the database.
+
+   By passing { validateBeforeSave: false }, we are telling mongoose to skip any additional validation checks that might be defined 
+   in the schema before saving the document. This is useful in this case because we have already verified the old password and we
+    just want to save the new password without triggering any other validation rules that might be present in the User schema. 
+     
+    "await" -> Database  is presents on different location or continent, that's why we use await at the time of interaction with
+     database. It ensures that the code execution waits for the database operation to complete before moving on to the next line of 
+     code. This is important because database operations can take some time to complete, and we want to make sure that the user's 
+     password is successfully updated in the database before we send a response back to the client. By using "await", we can handle 
+     asynchronous operations in a more synchronous manner, making our code easier to read and maintain.
+    */
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Password Changed successfully"));
+
+})
+
+// yha hum current logged in user ki details ko get karne ka functionality implement karenge, taki frontend me user apni profile page me jaake apni details dekh sake.
+const getCurrentUser = asyncHandler(async (req, res) => {
+
+   // currentUser ko get karne ke liye hume user ko identify karna padega, aur user identification ke liye hum JWT token ka use karenge, jisme user ki information hoti hai.
+   // jab bhi user apni details ko access karne ke liye request bhejega, toh uske request ke sath uska JWT access token bhi bhejega (kyunki humne login route me access token ko cookie me set kiya hai, toh wo har request ke sath automatically send hoga).
+   // jese hi request jayegi, toh "auth.middleware.js" me verifyJWT middleware execute hoga, jisme hum us JWT token ko verify karenge aur usme se user information extract karenge. 
+   // Agar token valid hai toh hum "req.user" me user information store kar denge, taki 'getCurrentUser' controller me hum "req.user" se user ki details ko access kar sake.
+   // getCurrentUser controller me hum req.user se user ki details ko access karenge, aur usko response me bhej denge, taki frontend me user apni profile page me jaake apni details dekh sake.
+   return res.status(200).json(
+      new ApiResponse(200, req.user, "Current user details fetched successfully")
+   )
+})
+
+
+
+/*  Keep TEXT updates and FILE updates SEPARATE! 
+               Bad approach:
+               One endpoint handles name + email + avatar + cover
+               → Too much data in one request
+               → Network congestion
+               → If user only wants to change name, 
+                  still uploads all files again!
+
+               Good approach (industry standard):
+               /update-account    → text only (name, email)
+               /update-avatar     → only avatar image
+               /update-cover-image → only cover image
+   --> matlab agar user apna name ya email update karna chahta hai, toh usko apni avatar ya cover image ko dobara upload nahi karna padega, aur 
+    agar user apni avatar ya cover image update karna chahta hai, toh usko apne name ya email ko dobara provide nahi karna padega. 
+    Is tarah se hum alag alag endpoints create karenge for different types of updates, taki hum network congestion ko avoid kar sake 
+    aur user experience ko improve kar sake.
+ */
+const updateAccountDetails = asyncHandler(async (req, res) => {
+         //1. Get details to update from req.body (fullName, email, etc.)
+         // 2. Find user from req.user (via middleware)
+         // 3. Update user details in DB
+         // 4. Return success response
+
+   const { fullName, email } = req.body; // hume jo bhi details update karni hai, wo req.body se mil jayegi, toh hum usko destructure kar lete hai taki hum easily access kar sake.
+   // yha hum user ke full name aur email ko update karne ka functionality implement karenge, taki user apni profile page me jaake apni details update kar sake.
+   // you can also add more fields like username, avatar, coverImage etc. as per your requirement.
+
+   if (!fullName || !email) { // yha hum check kar rahe hai ki user ne full name aur email dono fields ko provide kiya hai ya nahi, agar koi bhi field missing hai toh hum unko error response denge.
+      throw new ApiError(400, "Full name and email are required");
+   }
+
+   User.findByIdAndUpdate(
+      req.user._id,  // yha hum user ke unique identifier (req.user._id) ke basis par uske document ko database me find kar rahe hai, aur usko update kar rahe hai. 
+      {
+         $set: { fullName, email } // yha hum $set operator ka use kar rahe hai, jisme hum user ke full name aur email ko update kar rahe hai. 
+         // $set operator MongoDB me use hota hai kisi field ki value ko update karne ke liye.
+      },
+      { new: true }
+   ).select("-password"); // yha hum select method ka use kar rahe hai, jisme hum password ko exclude kar rahe hai, taki wo response me na aaye.
+
+   return res
+      .status(200).
+      json(new ApiResponse(200, {}, "Account details updated successfully"))
+})
+
+// yha hum user ke avatar ko update karne ka functionality implement karenge, taki user apni profile page me jaake apni avatar update kar sake.
+const updateUserAvatar = asyncHandler(async (req, res) => {
+   // 1. Get avatar file from req.file (Multer)
+   // 2. Find user from req.user (via middleware)
+   // 3. Upload new avatar to Cloudinary
+   // 4. Update user avatar in DB
+   // 5. Return success response
+
+   // 1. Get avatar file from req.file (Multer)
+   const avatarLocalPath = req.file?.path; /*  yha hum req.file se avatar file ka local path access kar rahe hai, jise Multer middleware ne handle kiya hai. 
+    Agar avatar file provided nahi hai, toh avatarLocalPath undefined ho jayega.
+
+    NOTE: Agar aap single file upload kar rahe hai, toh req.file ka use karenge, aur agar multiple files upload kar rahe hai, toh req.files ka use karenge.
+
+    yha hum 1 sirf avatar file ko handle kar rahe hai, toh hum req.file ka use karenge, aur usme se avatar file ka path access karenge.
+ */
+
+   if (!avatarLocalPath) { // yha hum check kar rahe hai ki avatar file provided hai ya nahi, agar nahi hai toh hum unko error response denge.
+      throw new ApiError(400, "Avatar file is required");
+   }
+
+   // 3. Upload new avatar to Cloudinary
+   const avatar = await uploadOnCloudinary(avatarLocalPath); /* This line is calling the "uploadOnCloudinary" helper function, 
+   passing the local path of the avatar file as an argument. The function will handle the process of uploading the file to Cloudinary
+    and return an object containing information about the uploaded file, including its URL. We are storing this returned object in
+     the "avatar" variable for further use in updating the user's avatar in the database. */
+
+   if (!avatar.url) { // yha hum check kar rahe hai ki avatar upload successful hua hai ya nahi, agar upload failed hua hai toh hum unko error response denge.
+      throw new ApiError(400, "Error while uploading avatar");
+   }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+    
+   // 4. Update user avatar in DB
+  const user = await User.findByIdAndUpdate(
+      req.user?._id, // yha hum user ke unique identifier (req.user._id) ke basis par uske document ko database me find kar rahe hai, aur usko update kar rahe hai. 
+      {
+         $set: { avatar: avatar.url } // yha hum $set operator ka use kar rahe hai, jisme hum user ke avatar field ko update kar rahe hai, aur usme avatar.url ko set kar rahe hai, jisme Cloudinary se return hua URL hoga.
+      },
+      { new: true }
+   ).select("-password"); // yha hum select method ka use kar rahe hai, jisme hum password ko exclude kar rahe hai, taki wo response me na aaye.
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Avatar updated successfully"))
+})
+
+// yha hum user ke cover image ko update karne ka functionality implement karenge, taki user apni profile page me jaake apni cover image update kar sake.
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+    //same as "updateUserAvatar" controller, but with cover image instead of avatar.
+
+    // 1. Get cover image file from req.file (Multer)
+    const coverImageLocalPath = req.file?.path;
+    // 2. Find user from req.user (via middleware) --> same as "updateUserAvatar" controller, so we can skip this step here.
+    if (!coverImageLocalPath) {
+       throw new ApiError(400, "Cover image file is required");
+    }
+// 3. Upload new cover image to Cloudinary
+      const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+      // yha hum check kar rahe hai ki cover image upload successful hua hai ya nahi, agar upload failed hua hai toh hum unko error response denge.
+   if (!coverImage.url) {
+      throw new ApiError(400, "Error while uploading cover image");
+   }
+
+   // 4. Update user cover image in DB
+    const user = await User.findByIdAndUpdate(
+      req.user?._id, 
+      {
+         $set: { coverImage: coverImage.url }
+      },
+      { new: true }
+   ).select("-password");
+
+   // 5. Return success response
+   return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Cover image updated successfully"))
+})
 
 export {
    registerUser,
    loginUser,
    logoutUser,
-   refreshAccessToken
+   refreshAccessToken,
+   changeCurrentPassword,
+   getCurrentUser,
+   updateAccountDetails,
+   updateUserAvatar,
+   updateUserCoverImage
 }
 
 

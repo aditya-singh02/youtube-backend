@@ -629,10 +629,19 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
 
    // Step 2: Find user from DB (from req.user via middleware)
-   const user = await User.findById(req.user?._id); // yha hum req.user se user id ko access kar rahe hai, jisse hum database me us user ko find kar sake. (req.user is set by the verifyJWT middleware that runs before this controller, so we can be sure that req.user contains the authenticated user's information)
+   const user = await User.findById(req.user?._id); /* yha hum req.user se user id ko access kar rahe hai, jisse hum database me us 
+   user ko find kar sake. (req.user is set by the verifyJWT middleware that runs before this controller, so we can be sure that 
+   req.user contains the authenticated user's information) 
+                           Why req.user?._id works here?
+                                    → verifyJWT middleware runs before this
+                                    → It attaches user object to req.user
+                                    → So user is guaranteed to be logged in
+   */
 
-   // Step 3: Verify oldPassword using isPasswordCorrect()
-   const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword); /* This line is using the "isPasswordCorrect" method defined in the User model to check if the provided "oldPassword" matches the user's current password stored in the database. The method will return true if the passwords match and false if they do not. */
+   //Step 3: Verify oldPassword using isPasswordCorrect()
+   const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword); /* This line is using the "isPasswordCorrect" method 
+      defined in the User model to check if the provided "oldPassword" matches the user's current password stored in the database. 
+      The method will return true if the passwords match and false if they do not. */
 
    // Step 4: If wrong → throw error
    if (!isOldPasswordCorrect) {
@@ -641,6 +650,14 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
    // Step 5: Set user.password = newPassword
    user.password = newPassword; // yha hum user ke password field ko new password se update kar rahe hai.
+                  /*  Why user.password = newPassword (not findByIdAndUpdate)?
+                              → We NEED the pre-save hook to fire!
+                              → Pre-save hook: if(password modified) → hash it
+                              → findByIdAndUpdate bypasses pre-save hooks
+                              → Direct assignment + save() triggers the hook ✅
+                        */
+
+
 
    // Step 6: user.save({ validateBeforeSave: false })
    await user.save({ validateBeforeSave: false }); /* ye line user document ko save karne ke liye use kiya jata hai. Jab hum "user.password" 
@@ -656,6 +673,11 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
      code. This is important because database operations can take some time to complete, and we want to make sure that the user's 
      password is successfully updated in the database before we send a response back to the client. By using "await", we can handle 
      asynchronous operations in a more synchronous manner, making our code easier to read and maintain.
+
+                     Why validateBeforeSave: false?
+                           → We're only changing one field
+                           → Don't want all other validations to run
+                           → Just save the password change
     */
 
    return res
@@ -675,6 +697,19 @@ const getCurrentUser = asyncHandler(async (req, res) => {
    return res.status(200).json(
       new ApiResponse(200, req.user, "Current user details fetched successfully")
    )
+
+   /* --->Why this is so simple:
+            verifyJWT middleware already:
+                  1. Extracted token from cookies/header
+                  2. Verified JWT signature
+                  3. Found user in DB
+                  4. Removed password and refreshToken
+                  5. Attached clean user to req.user
+
+            So by the time this controller runs:
+                  req.user = complete user object (no sensitive fields)
+            Just return it! ✅
+    */
 })
 
 
@@ -722,7 +757,36 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
    return res
       .status(200).
       json(new ApiResponse(200, {}, "Account details updated successfully"))
+
 })
+
+
+/* 
+         ---> $set: only updates specified fields
+                              // Other fields remain unchanged!
+
+                        // -->Without $set (DON'T do this):
+                                 { fullName: "New Name" }
+                           → Might overwrite entire document!
+
+                        // --> With $set (CORRECT):
+                                 { $set: { fullName: "New Name", email: "new@email.com" } }
+                           → Only these 2 fields change
+                           → Everything else stays same ✅
+
+
+         -->"findByIdAndUpdate" options:
+                              User.findByIdAndUpdate(
+                                       id,          // WHAT to find
+                                       { $set: {} }, // WHAT to update
+                                       { new: true } // RETURN new document (after update)
+                              )
+                  // { new: true } is critical!
+                  // Without it → returns OLD document
+                  // With it → returns UPDATED document ✅
+ */
+
+
 
 // yha hum user ke avatar ko update karne ka functionality implement karenge, taki user apni profile page me jaake apni avatar update kar sake.
 const updateUserAvatar = asyncHandler(async (req, res) => {
@@ -767,6 +831,30 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
    return res
       .status(200)
       .json(new ApiResponse(200, {}, "Avatar updated successfully"))
+
+/* -->  Why avatar.url (not just avatar)?
+    Cloudinary returns full object:
+               avatar = {
+               url: "https://res.cloudinary.com/...",
+               public_id: "abc123",
+               width: 800,
+               height: 600,
+               format: "jpg",
+               // ...many more fields
+               }
+
+// User model stores STRING (just URL):
+               avatar: {
+               type: String,
+               required: true
+               }
+
+// So store only the URL:
+      $set: { avatar: avatar.url }  ✅
+// NOT:
+      $set: { avatar: avatar }      ❌ (would store whole object)
+ */
+
 })
 
 // yha hum user ke cover image ko update karne ka functionality implement karenge, taki user apni profile page me jaake apni cover image update kar sake.

@@ -37,7 +37,55 @@ ki jab user logout kare toh uska refresh token bhi invalid ho jaye, taki securit
 // lecture 16 (part) ka start
 router.route("/refresh-token").post(refreshAccessToken) // ye route refresh token ke basis par naya access token generate karne ke liye hai, taki user ko baar baar login na karna pade jab bhi uska access token expire ho jaye.
 
+
+
+//lecture 17 (part)
+
+
+//--->// Text-only updates → only verifyJWT
+router.route("/change-password").post(verifyJWT, changeCurrentPassword) /* ye route user ke current password ko change karne ke 
+liye hai. jab user is route ko access karta hai toh pehle "verifyJWT" middleware execute hota hai, jisme user ke JWT token ko verify 
+kiya jata hai. agar token valid hai toh user ko access mil jata hai aur changeCurrentPassword controller function execute hota hai, 
+jisme user apna current password change kar sakta hai. is tarah se hum ensure karte hai ki sirf authenticated users hi apna password 
+change kar sakte hai, taki security maintain rahe.
+ */
+router.route("/current-user").get(verifyJWT, getCurrentUser) /* ye route currently logged in user ke details ko fetch karne ke liye hai. */ 
+router.route("/update-account").patch(verifyJWT, updateAccountDetails) 
  
+
+//--> // File updates → multer FIRST, then verifyJWT
+router.route("/avatar").patch( 
+    verifyJWT, 
+    upload.single("avatar"),   // multer middleware 
+    updateUserAvatar
+) /* ye route user ke avatar image ko update karne ke liye hai. jab user is route ko access karta hai toh pehle 
+"verifyJWT" middleware execute hota hai, jisme user ke JWT token ko verify kiya jata hai. 
+agar token valid hai toh user ko access mil jata hai aur "upload.single("avatar")" middleware execute hota hai, jisme user ke avatar image ko
+ upload kiya jata hai. uske baad "updateUserAvatar" controller function execute hota hai, jisme user ke avatar image ko
+  update kiya jata hai. is tarah se hum ensure karte hai ki sirf authenticated users hi apne avatar image ko update kar 
+  sakte hai, taki security maintain rahe.
+ */
+router.route("/cover-image").patch(
+    verifyJWT, 
+    upload.single("coverImage"),  // multer middleware 
+    updateUserCoverImage
+) 
+/* --> Why PATCH not POST for updates?
+            POST   → Create new resource
+            PUT    → Replace ENTIRE resource
+            PATCH  → Partial update (only specific fields) ✅
+
+        We're only updating ONE or TWO fields
+            PATCH is semantically correct here
+ */
+
+
+
+
+
+
+
+
 export default router;
 
 

@@ -650,12 +650,12 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
    // Step 5: Set user.password = newPassword
    user.password = newPassword; // yha hum user ke password field ko new password se update kar rahe hai.
-                  /*  Why user.password = newPassword (not findByIdAndUpdate)?
-                              → We NEED the pre-save hook to fire!
-                              → Pre-save hook: if(password modified) → hash it
-                              → findByIdAndUpdate bypasses pre-save hooks
-                              → Direct assignment + save() triggers the hook ✅
-                        */
+   /*  Why user.password = newPassword (not findByIdAndUpdate)?
+               → We NEED the pre-save hook to fire!
+               → Pre-save hook: if(password modified) → hash it
+               → findByIdAndUpdate bypasses pre-save hooks
+               → Direct assignment + save() triggers the hook ✅
+         */
 
 
 
@@ -732,10 +732,10 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     aur user experience ko improve kar sake.
  */
 const updateAccountDetails = asyncHandler(async (req, res) => {
-         //1. Get details to update from req.body (fullName, email, etc.)
-         // 2. Find user from req.user (via middleware)
-         // 3. Update user details in DB
-         // 4. Return success response
+   //1. Get details to update from req.body (fullName, email, etc.)
+   // 2. Find user from req.user (via middleware)
+   // 3. Update user details in DB
+   // 4. Return success response
 
    const { fullName, email } = req.body; // hume jo bhi details update karni hai, wo req.body se mil jayegi, toh hum usko destructure kar lete hai taki hum easily access kar sake.
    // yha hum user ke full name aur email ko update karne ka functionality implement karenge, taki user apni profile page me jaake apni details update kar sake.
@@ -809,6 +809,14 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Avatar file is required");
    }
 
+
+   /* -->> TODO- Delete old avatar from Cloudinary (if exists) --> is step me hum check karenge ki user ke paas pehle se koi avatar hai 
+   ya nahi, agar hai toh usko Cloudinary se delete kar denge, taki unnecessary files Cloudinary me store na ho jaye aur hum apne 
+   Cloudinary storage ko optimize kar sake. Is step ko implement karne ke liye hume user document me stored avatar URL se us file 
+   ka public_id extract karna padega, aur phir us public_id ko use karke Cloudinary API ke through us file ko delete karna padega. 
+   Agar user ke paas pehle se avatar nahi hai, toh hum is step ko skip kar denge.
+   */
+
    // 3. Upload new avatar to Cloudinary
    const avatar = await uploadOnCloudinary(avatarLocalPath); /* This line is calling the "uploadOnCloudinary" helper function, 
    passing the local path of the avatar file as an argument. The function will handle the process of uploading the file to Cloudinary
@@ -817,10 +825,10 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
    if (!avatar.url) { // yha hum check kar rahe hai ki avatar upload successful hua hai ya nahi, agar upload failed hua hai toh hum unko error response denge.
       throw new ApiError(400, "Error while uploading avatar");
-   }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
-    
+   }
+
    // 4. Update user avatar in DB
-  const user = await User.findByIdAndUpdate(
+   const user = await User.findByIdAndUpdate(
       req.user?._id, // yha hum user ke unique identifier (req.user._id) ke basis par uske document ko database me find kar rahe hai, aur usko update kar rahe hai. 
       {
          $set: { avatar: avatar.url } // yha hum $set operator ka use kar rahe hai, jisme hum user ke avatar field ko update kar rahe hai, aur usme avatar.url ko set kar rahe hai, jisme Cloudinary se return hua URL hoga.
@@ -832,52 +840,52 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
       .status(200)
       .json(new ApiResponse(200, {}, "Avatar updated successfully"))
 
-/* -->  Why avatar.url (not just avatar)?
-    Cloudinary returns full object:
-               avatar = {
-               url: "https://res.cloudinary.com/...",
-               public_id: "abc123",
-               width: 800,
-               height: 600,
-               format: "jpg",
-               // ...many more fields
-               }
-
-// User model stores STRING (just URL):
-               avatar: {
-               type: String,
-               required: true
-               }
-
-// So store only the URL:
-      $set: { avatar: avatar.url }  ✅
-// NOT:
-      $set: { avatar: avatar }      ❌ (would store whole object)
- */
+   /* -->  Why avatar.url (not just avatar)?
+       Cloudinary returns full object:
+                  avatar = {
+                  url: "https://res.cloudinary.com/...",
+                  public_id: "abc123",
+                  width: 800,
+                  height: 600,
+                  format: "jpg",
+                  // ...many more fields
+                  }
+   
+   // User model stores STRING (just URL):
+                  avatar: {
+                  type: String,
+                  required: true
+                  }
+   
+   // So store only the URL:
+         $set: { avatar: avatar.url }  ✅
+   // NOT:
+         $set: { avatar: avatar }      ❌ (would store whole object)
+    */
 
 })
 
 // yha hum user ke cover image ko update karne ka functionality implement karenge, taki user apni profile page me jaake apni cover image update kar sake.
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-    //same as "updateUserAvatar" controller, but with cover image instead of avatar.
+   //same as "updateUserAvatar" controller, but with cover image instead of avatar.
 
-    // 1. Get cover image file from req.file (Multer)
-    const coverImageLocalPath = req.file?.path;
-    // 2. Find user from req.user (via middleware) --> same as "updateUserAvatar" controller, so we can skip this step here.
-    if (!coverImageLocalPath) {
-       throw new ApiError(400, "Cover image file is required");
-    }
-// 3. Upload new cover image to Cloudinary
-      const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+   // 1. Get cover image file from req.file (Multer)
+   const coverImageLocalPath = req.file?.path;
+   // 2. Find user from req.user (via middleware) --> same as "updateUserAvatar" controller, so we can skip this step here.
+   if (!coverImageLocalPath) {
+      throw new ApiError(400, "Cover image file is required");
+   }
+   // 3. Upload new cover image to Cloudinary
+   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
-      // yha hum check kar rahe hai ki cover image upload successful hua hai ya nahi, agar upload failed hua hai toh hum unko error response denge.
+   // yha hum check kar rahe hai ki cover image upload successful hua hai ya nahi, agar upload failed hua hai toh hum unko error response denge.
    if (!coverImage.url) {
       throw new ApiError(400, "Error while uploading cover image");
    }
 
    // 4. Update user cover image in DB
-    const user = await User.findByIdAndUpdate(
-      req.user?._id, 
+   const user = await User.findByIdAndUpdate(
+      req.user?._id,
       {
          $set: { coverImage: coverImage.url }
       },
@@ -890,6 +898,384 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, {}, "Cover image updated successfully"))
 })
 
+
+// ******************                                    lecture 19***************
+//(Read documentation for more details in MongoDB website)
+/* Aggregation Pipeline in MongoDB:
+   --> aggregation pipeline matlab data ko process karne ka ek powerful framework hai MongoDB me, jisme hum multiple stages define 
+         kar sakte hai to perform complex data transformations and computations on our collections.
+   --> pipeline me har stage ek specific operation perform karta hai, jaise ki filtering, grouping, sorting, projecting, etc. 
+   --> har stage ka output next stage ke input ke roop me use hota hai, jisse hum apne data ko step by step transform kar sakte hai.
+   --> aggregation pipeline ka use hum tab karte hai jab hume apne data par complex queries run karni hoti hai, jaise ki calculating 
+         averages, summing values, grouping data by certain fields, etc.
+
+
+--> Aggregation pipeline = Series of stages
+   Each stage processes documents and passes result to next stage
+
+      Stage 1 → output → Stage 2 → output → Stage 3 → final result
+
+KEY RULE:
+  Whatever documents pass stage 1
+  ONLY those documents go to stage 2
+  
+  Example:
+    100 documents → Stage 1 filter → 50 documents
+    50 documents → Stage 2 process → 50 documents
+    50 documents → Stage 3 shape → final output
+
+
+how to write aggregation pipeline queries:- 
+     --> db.aggregate() or db.collection_name.aggregate() method ka use karke hum apni aggregation pipeline queries ko likhte hai.
+
+      db.collection_name.aggregate([         // "collection_name" is the name of the collection on which we want to run the aggregation pipeline.
+         { $stage1: { ... } },  -> (1st stage) each object represents a stage in the pipeline, and the order of these stages matters as the output of one stage is the input for the next stage.
+         { $stage2: { ... } },   -> (2nd stage)
+         { $stage3: { ... } },   -> (3rd stage)
+          .
+          .                               // Each stage = one object in the array
+          .                               // Results from one stage feed into next stage
+          .
+         {},
+   ])                
+*/
+/*-->Some common stages in aggregation pipeline:
+      1. $match: This stage is used to filter documents based on specified criteria, similar (like WHERE clause in SQL).
+                        { $match: { username: username } }
+                  // Finds documents where username matches
+                  // Similar to: WHERE username = 'chaiaurcode'
+                  // Best practice: usually FIRST stage to reduce data early
+
+      2. $group: This stage is used to group documents by a specified field and perform aggregate operations like sum, average, count, etc. on the grouped data.
+
+      3. $project: This stage is used to reshape the documents by including, excluding, or adding new fields.
+            ---> Select which fields to return
+                   {
+                     $project: {
+                        fullName: 1,      // 1 = include
+                        username: 1,
+                        email: 1,
+                        avatar: 1,
+                        coverImage: 1,
+                        password: 0       // 0 = exclude (not needed here, just example)
+                     }
+                     }
+                           // Only specified fields (with 1) are returned
+                           // Reduces network traffic
+                           // Professional practice: never return more than needed
+
+
+      4. $sort: This stage is used to sort the documents based on specified fields in ascending or descending order.
+
+      5. $lookup: This stage is used to perform a left outer join between two collections, allowing you to combine data 
+                  from multiple collections in a single query. (like SQL JOIN.)
+                  It "always returns an array" of matching documents from the joined collection, even if there is only one match or no matches at all.
+                        {
+                                 $lookup: {
+                                    from: "subscriptions",     // collection to join
+                                    localField: "_id",         // field in current collection
+                                    foreignField: "channel",   // field in joined collection
+                                    as: "subscribers"          // name for result array
+                                 }
+                                 }
+                                 // Result: adds "subscribers" array to each document
+                                 // Contains all matching documents from subscriptions
+
+      6. $addFields: This stage is used to add new calculated fields to the documents or modify existing fields.
+                        {
+                           $addFields: {
+                              subscribersCount: { $size: "$subscribers" },
+                              newField: "someValue"
+                           }
+                        }
+                        // Keeps all existing fields
+                        // ADDS new fields to the document
+                        // Does NOT remove existing fields
+
+      7. $size: Count array elements
+               { $size: "$subscribers" }
+                  // Returns count of items in subscribers array
+                  // "$subscribers" = dollar sign means it's a field reference
+
+      8. $cond — Conditional expression (if-then-else)
+                     {
+                     $cond: {
+                           if: { condition },
+                           then: true,
+                           else: false
+                        }
+                     }
+      9. $in — Check if value exists in array/object
+                  { $in: [valueToFind, "$arrayField"] }
+                        // Returns true if valueToFind exists in arrayField
+                        // Works for both arrays AND objects 
+*/
+/*--> In MongoDB Atlas me Aggregation Pipeline ko use karne ke liye, hum apne collection ke upar "aggregate" method call karte hai, 
+   jisme hum apni pipeline stages ko define karte hai as an array of objects.
+   or
+
+--> MongoDB Atlas me "cluster0" me jaake apne database ke upar click karte hai, phir "collections" me jaake apni collection select 
+   karte hai, phir "Aggregations" tab me jaake apni pipeline stages ko define karte hai, aur phir "Run" button click karke apni 
+   aggregation query ko execute karte hai.
+   Cluster0 me Upar "Aggregations" tab pr click krne pr ek interface open hota hai jisme hum apni aggregation pipeline ke stages ko define kar sakte hai.
+         In 2 ways se hum apni aggregation pipeline ke stages ko define kar sakte hai:
+          1. Add Stage button click karke har stage ko manually add karna, aur usme required fields ko fill karna.
+          2. "Text" option select karke apni aggregation pipeline ko JSON format me directly paste karna, aur phir "Run" button click karke query ko execute karna.
+
+
+
+*****Example of aggregation pipeline stage in MongoDB Atlas:
+ --> Book + author collections example:  if we have a "books" collection and an "authors" collection, aur hume har book ke sath uske 
+                                          author ki details bhi chahiye, toh hum aggregation pipeline me "$lookup" stage ka use karenge to perform a left outer join between the two collections.
+
+      --> Writeing the aggregation pipeline query in MongoDB Atlas using the "Text" option would look like this: 
+          -->ye book and author collection mongoDB me store honge is tarah se:
+           * Book collection:
+            {
+               _id: 1 ,  // unique identifier for the book document we ObjectId("...") bhi use kar sakte hai, but yaha humne simple integer id use kiya hai for simplicity.
+               title: "Book Title",
+               authorId: ObjectId("..."),
+               // other book fields
+            }
+
+            * Author collection:
+            {
+               _id: 100, 
+               name: "Author Name",
+               // other author fields
+            }
+
+  --> ye aggregation pipeline query "books" collection ke upar run karne par har book document ke sath uske corresponding 
+  "author details" bhi include ho jayengi as an array field named "authorDetails".
+
+         db.books.aggregate([
+            {
+               $lookup: {
+                  from: "authors", // which collection to join with
+                  localField: "authorId", // field from books collection
+                  foreignField: "_id", // field from authors collection
+                  as: "authorDetails" // name of the new array field to store joined data
+               }
+            }
+         ]) 
+
+                                             Result:
+                                             {
+                                                _id: 1,
+                                                title: "Book Title",
+                                                authorId: ObjectId("..."),
+                                                authorDetails: [
+                                                   {
+                                                      _id: 100,
+                                                      name: "Author Name",
+                                                      // other author fields
+                                                   }
+                                                ]
+                                             }  
+ */
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+   // 1. Get username from URL params
+   // 2. Validate username exists
+   // 3. Run aggregation pipeline:
+   //    Stage 1: $match → find this user
+   //    Stage 2: $lookup → get subscribers (people subscribed to this channel)
+   //    Stage 3: $lookup → get subscribedTo (channels this user subscribed to)
+   //    Stage 4: $addFields → calculate counts + isSubscribed
+   //    Stage 5: $project → select what to return
+   // 4. Check if channel was found
+   // 5. Return channel profile data
+
+   // Step 1: Get username from URL params. -> req.params is used to access the parameters passed in the URL of the request.                    
+   const { username } = req.params; /* This line is using destructuring assignment to extract the "username" parameter from the URL parameters (req.params). 
+      When a request is made to a route that includes a dynamic segment (e.g., /users/:username), the value of that segment will be available in req.params. 
+      By destructuring it, we can directly access the username variable in our code without having to reference req.params.username every time. */
+
+   // Step 2: Validate username exists
+   if (!username?.trim()) { // .trim() method is used to remove any leading or trailing whitespace from the username string. 
+      throw new ApiError(400, "Username is required");
+   }
+
+   // Step 3: Run aggregation pipeline:
+   /*-->User.find({ username }) -> hum pehle user find krke uska id nikalke , phir uske id ke basis pr aggregation pipeline 
+                                 run kr skte he, but isse do queries chalengi, ek find ke liye aur ek aggregation ke liye, 
+   -> toh hum directly aggregation pipeline me hi $match stage ka use karke user ko find kar sakte hai, taki sirf ek hi query
+    chale aur hum apne database interactions ko optimize kar sake.
+    */
+
+   const channel = await User.aggregate([
+      // Stage 1: $match → find this user(1st pipeline stage)
+      {
+         $match: {
+            username: username?.toLowerCase() // yha hum username ko lowercase me convert kar rahe hai, taki case-insensitive search ho sake, aur agar user ne apna username uppercase me set kiya hai toh bhi wo match ho jaye.
+         }
+      },
+      // Stage 2: $lookup → get all subscribers (people subscribed to this channel) (2nd pipeline stage) 
+         // "Who subscribed TO this channel?"
+         // → Look in "subscriptions " in subscription.model.js where  channel = this user's _id
+      {
+         $lookup: {
+            from: "subscriptions", // which collection to join with. 
+            // yaha hum "subscriptions" collection ke sath join kar rahe hai, jisme user ke subscriptions ki details stored hoti hai.
+            // Subscriptions.model.js me humne collection name "Subscription" define kiya hai, toh MongoDB me wo collection automatically "subscriptions" ke naam se create ho jata hai (lowercase + plural), isliye hum yaha "subscriptions" collection ke sath join kar rahe hai.
+
+            /* ⚠️ Critical Points to Remember
+                           Collection names in $lookup:
+                                 When you create a model:      "Subscriptions.model.js"
+                                    export const Subscription = mongoose.model("Subscription", subscriptionSchema);       
+
+                           MongoDB stores it as:
+                              "subscriptions" (lowercase + plural)
+
+                           In $lookup → from field:
+                           from: "subscriptions"   ✅ correct
+                           from: "Subscription"    ❌ wrong       */
+
+            localField: "_id", // field from users collection (this user's _id)
+            foreignField: "channel", // field from subscriptions collection (channel field in subscription model)
+            as: "subscribers" // name of the new array field to store joined data 
+         }
+      },
+
+      // Stage 3: $lookup → get all subscribedTo (channels this user subscribed to) (3rd pipeline stage)
+            // "Who is this user subscribed TO?"
+            // → Look in "subscriptions" where subscriber = this user's _id
+      {
+         $lookup: {
+            from: "subscriptions", // which collection to join with (same "subscriptions" collection as before)
+            localField: "_id", // field from users collection (this user's _id)
+            foreignField: "subscriber", // field from subscriptions collection (subscriber field in subscription model)
+            as: "subscribedTo" // name of the new array field to store joined data
+         }
+      },
+
+      // Stage 4: $addFields → calculate counts + isSubscribed (4th pipeline stage)
+          // abhi tak humne iss pipeline me sb data join kiya hai, ab hume is data ko process karna hai taki hum apne response me jo data bhejenge usme subscriber count, subscribedTo count, aur isSubscribed field bhi include ho jaye.
+      {
+         $addFields: {
+            // Count total subscribers
+            subscriberCount: {
+               $size: "$subscribers", // yha hum $size operator ka use kar rahe hai, jisme hum "subscribers" array jisme document hai uski size ko calculate kar rahe hai, taki hume subscriber count mil jaye.
+               // NOTE-> "$subscribers" me $ sign ka use isliye kiya jata hai, taki hum aggregation pipeline me us field ko reference kar sake jo humne pehle stage me create kiya hai (as: "subscribers"), aur usme stored data ko access kar sake.
+            },
+            // Count channels subscribed to
+            channelsSubscribedToCount: {
+               $size: "$subscribedTo"
+            },
+
+            // --->>>Check if current user is subscribed to this channel
+               /* After Stage 2 ($lookup), "subscribers" array looks like:
+                        [
+                        { subscriber: ObjectId("A"), channel: ObjectId("CaC"), ... },
+                        { subscriber: ObjectId("B"), channel: ObjectId("CaC"), ... },
+                        { subscriber: ObjectId("C"), channel: ObjectId("CaC"), ... }
+                        ]
+
+               We want to know: Is "req.user._id" in this array?
+                     $in: [req.user._id, "$subscribers.subscriber"]
+                     → Searches through subscribers array
+                     → Looks at the "subscriber" field of each object
+                     → Checks if req.user._id matches any of them
+                     → Returns true/false
+
+
+*******->  $in works on both arrays AND objects:
+               -->// On array:
+                        $in: [value, ["a", "b", "c"]]
+
+               -->// On object field within array:
+                        $in: [value, "$subscribers.subscriber"]
+                           // MongoDB automatically extracts all "subscriber" values
+                           // from the subscribers array and searches through them
+ */
+
+            isSubscribed: {
+               $cond: { /* $cond operator MongoDB me use hota hai conditional statements ko evaluate karne ke liye, jisme hum if-then-else logic ko implement kar sakte hai. 
+                     Is case me hum check kar rahe hai ki agar current user ka ID subscribedTo array ke subscriber field me exist 
+                     karta hai (using $in operator), toh isSubscribed field ko true set kar denge, otherwise false set kar denge.  */
+
+                  // $in operator is used to check if a value exists in an array or object. here we check in 
+                  if: { $in: [req.user?._id, "$subscribers.subscriber"] }, /* yha hum $in operator ka use kar rahe hai, jisme hum check kar rahe 
+                     hai ki current user's ID (req.user?._id) "subscribers" array ke "subscriber" field me exist karta hai ya nahi.
+                       
+                     "subscribers" array me har document me "subscriber" field hota hai, jisme us subscriber ka ID stored hota hai jo is channel ko subscribe kiya hai. 
+                     Agar current user's ID is array me exist karta hai, toh iska matlab hai ki current user is channel ko subscribe kiya hua hai, aur hum isSubscribed field ko true set kar denge, otherwise false set kar denge. */
+
+                  then: true,
+                  else: false
+               }
+            }
+         }
+      },
+      // Stage 5: $project → select what to return (5th pipeline stage) (Project only needed fields)
+            // ab hume apne response me se unnecessary fields ko exclude karna hai, aur sirf wo fields include karne hai jo frontend me dikhani hai, taki hum apne response ko optimize kar sake.
+      {
+         // 1 means include, 0 means exclude.
+         $project: {
+            fullName: 1, // yha hum fullName field ko include kar rahe hai, taki wo response me aaye.
+            username: 1,
+            subscribersCount: 1,
+            channelsSubscribedToCount: 1,
+            isSubscribed: 1,
+            avatar: 1,
+            coverImage: 1,
+            email: 1
+         }
+      }
+
+   ])
+
+   // Step 4: Check if channel was found
+   if(!channel?.length) { // yha hum check kar rahe hai ki aggregation pipeline se koi channel document return hua hai ya nahi, agar nahi hua hai toh hum unko error response denge.
+      throw new ApiError(404, "Channel does not exist");
+   }
+
+   // Step 5: Return channel profile data
+   return res
+   .status(200)
+   .json(  // aggregate returns array, we need first element
+      new ApiResponse(200, channel[0], "Channel profile fetched successfully")
+   )
+
+   /* --> Why channel[0]?
+            → Aggregation always returns an array of documents
+            → Even if only 1 document matches, it's still in an array
+            → So we take the first element (channel[0]) to get the actual document ✅
+
+structure of channel variable after aggregation:
+   channel = [
+      {
+         fullName: "Channel Name",
+         username: "channelusername",
+         subscribersCount: 100,
+         channelsSubscribedToCount: 50,
+         isSubscribed: true,
+         avatar: "https://res.cloudinary.com/...",
+         coverImage: "https://res.cloudinary.com/...",
+         email: "
+      }
+   ]
+
+   so channel[0] is the actual channel document we want to return in the response. 
+
+
+         --> Why use aggregation for this?
+            → We need to join with subscriptions collection TWICE
+            → Once to get subscribers, once to get subscribedTo
+            → Then we need to calculate counts and isSubscribed
+            → Doing all this in regular code would require MULTIPLE queries and complex logic
+            → Aggregation pipeline lets us do it all in ONE query, directly in the database, which is much more efficient! ✅
+    */
+})
+
+
+
+
+
+
+
+
+
 export {
    registerUser,
    loginUser,
@@ -899,7 +1285,8 @@ export {
    getCurrentUser,
    updateAccountDetails,
    updateUserAvatar,
-   updateUserCoverImage
+   updateUserCoverImage,
+   getUserChannelProfile
 }
 
 

@@ -1,8 +1,20 @@
 import {Router} from 'express';
-import { loginUser, registerUser, logoutUser , refreshAccessToken } from '../controllers/user.controller.js';
+import { 
+    loginUser, 
+    registerUser, 
+    logoutUser , 
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser, 
+    updateAccountDetails, 
+    updateUserAvatar, 
+    updateUserCoverImage, 
+    getUserChannelProfile,
+    getWatchHistory
+} from '../controllers/user.controller.js';
 
 import upload from '../middlewares/multer.middleware.js'; // This line imports the multer middleware from the specified path. The multer middleware is used for handling file uploads in Express.js applications.
-import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { verifyJWT } from  '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -55,7 +67,7 @@ router.route("/update-account").patch(verifyJWT, updateAccountDetails)
 
 //--> // File updates → multer FIRST, then verifyJWT
 router.route("/avatar").patch( 
-    verifyJWT, 
+    verifyJWT,  // verifyJWT se ensure karte hai ki sirf authenticated(logged-in) users hi apne avatar image ko update kar sakte hai, taki security maintain rahe.
     upload.single("avatar"),   // multer middleware 
     updateUserAvatar
 ) /* ye route user ke avatar image ko update karne ke liye hai. jab user is route ko access karta hai toh pehle 
@@ -78,6 +90,16 @@ router.route("/cover-image").patch(
         We're only updating ONE or TWO fields
             PATCH is semantically correct here
  */
+
+//---> lecture 20 (part) ka 
+router.route("/c/:username").get(verifyJWT, getUserChannelProfile) /* getUserChannelProfile me hum req.params se username le rhe hai, 
+to iske liye humne route me "/c/:username" aise likhte hai ..taki jb user is route ko access kare toh uska username req.params.username me aa jaye aur hum uske basis par user ka channel profile fetch kar sake.
+/c/:username -> /c/hitesh  (example) (to yha se username automatically req.params.username me aa jayega)
+*/
+
+router.route("/history").get(verifyJWT,getWatchHistory) 
+
+
 
 
 

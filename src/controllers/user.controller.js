@@ -1073,7 +1073,18 @@ how to write aggregation pipeline queries:-
                                                 ]
                                              }  
  */
+/*  ⚠️ Critical Points to Remember
+                     Collection names in $lookup:
+                           When you create a model:      "User.model.js"
+                              export const User = mongoose.model("User", userSchema);
 
+                     MongoDB stores it as:
+                        "users" (lowercase + plural)
+
+                     In $lookup → from field:
+                     from: "users"   ✅ correct
+                     from: "User"    ❌ wrong       */
+ 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
    // 1. Get username from URL params
    // 2. Validate username exists
@@ -1214,7 +1225,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
          $project: {
             fullName: 1, // yha hum fullName field ko include kar rahe hai, taki wo response me aaye.
             username: 1,
-            subscribersCount: 1,
+            subscriberCount: 1,
             channelsSubscribedToCount: 1,
             isSubscribed: 1,
             avatar: 1,
@@ -1269,9 +1280,273 @@ structure of channel variable after aggregation:
 })
 
 
+//* ******************                                    lecture 20***************
+
+// yha hum user ke watch history ko get karne ka functionality implement karenge, taki user apni profile page me jaake apni watch history dekh sake.
+                        /* 🧠 Key Interview Concept — String vs ObjectId
+                     -->  What you actually get from req.user._id:
+                              req.user?._id
+                                 // Returns: "64f7a2b3c9e4f1234567890a"  ← STRING not ObjectId! from '_id: ObjectId("64f7a2b3c9e4f1234567890a")'
+
+                        // In regular Mongoose methods (findById, findOne): (ye string automatically convert ho jata hai ObjectId me, 
+                              aur query sahi se work karti hai, toh humko is baare me tension lene ki zarurat nahi hai, kyunki Mongoose 
+                              automatically string ko ObjectId me convert kar deta hai behind the scenes, toh hum apne queries me directly string _id 
+                              ka use kar sakte hai without worrying about the conversion.)
+
+                        // Mongoose automatically converts string → ObjectId behind the scenes
+                        // So no issue there ✅
 
 
+                        // BUT in Aggregation Pipelines: (But in aggregation pipelines, Mongoose does NOT auto-convert string to 
+                              ObjectId, toh agar hum apne aggregation pipeline me req.user._id ko directly use karte hai without 
+                              converting it to ObjectId, toh wo match nahi karega kyunki MongoDB me _id field ObjectId type ka hota 
+                              hai, aur string "64f7a2b3..." ObjectId("64f7a2b3...") ke barabar nahi hota hai, isliye $match stage me 
+                              wo match fail ho jayega aur zero results return honge, toh hume apne aggregation pipeline me explicitly
+                               string _id ko ObjectId me convert karna padega using mongoose.Types.ObjectId(req.user._id) taki wo sahi 
+                               se match ho sake aur hume correct results mil sake.)
+                        // Code goes DIRECTLY to MongoDB
+                        --> Mongoose does NOT auto-convert here!
+                        --> String "64f7a2b3..." ≠ ObjectId("64f7a2b3...")
+                        // → $match will FAIL silently → zero results returned 
+                              Solution: Convert string to ObjectId in pipeline:  Must manually convert string → ObjectId for aggregation
+                                    new mongoose.Types.ObjectId(req.user._id) ✅ //new lagana zaruri hai, kyunki mongoose.Types.ObjectId ek constructor function hai, jise new keyword ke sath call karna 
+                                                                                    hota hai to create a new ObjectId instance from the string _id.
 
+                                 This creates a proper MongoDB ObjectId object
+                                  Now $match works correctly in aggregation pipeline ✅
+
+Q: What does req.user._id return?
+A: It returns a STRING, not a MongoDB ObjectId.
+   Mongoose auto-converts it in regular queries,
+   but in aggregation pipelines you must manually convert
+   using new mongoose.Types.ObjectId()
+                        */
+const getWatchHistory = asyncHandler(async (req, res) => {  
+   /* 🎬 Why getWatchHistory Needs Nested Lookup? 
+         Answer: Because we need to get video details AND owner details for each video in the watch history, which requires two levels of lookup.
+         we have a user document that contains an array of video IDs in the watch history, and we want to retrieve not only the details of those videos but also the details of the owners of those videos. 
+         So, we need to perform a $lookup to get the video details from the video collection, and then for each video, we need to perform another $lookup to get the owner details from the user collection. 
+         This is why we need a nested lookup in our aggregation pipeline.
+
+            The data structure challenge:
+                  User document:
+                  {
+                  _id: "AAA",
+                  watchHistory: [
+                     ObjectId("vid1"),
+                     ObjectId("vid2"),
+                     ObjectId("vid3")
+                  ]
+                  }
+
+                  Video document:
+                  {
+                  _id: ObjectId("vid1"),
+                  title: "Video 1",
+                  thumbnail: "...",
+                  owner: ObjectId("BBB")  ← points to another User!
+                  }
+
+                  User (owner) document:
+                  {
+                  _id: ObjectId("BBB"),
+                  username: "hitesh",
+                  avatar: "..."
+                  }
+   The problem:
+            Step 1: $lookup watchHistory → Videos
+            → Gets video documents ✅
+            → But each video has owner = ObjectId only
+            → No owner name/avatar ❌
+
+            Step 2: Need another $lookup inside each video
+            → owner ObjectId → User document
+            → Get username, avatar, fullName
+
+         This second $lookup INSIDE the first one = NESTED / SUB PIPELINE
+
+   Without sub-pipeline:
+   You'd get incomplete video objects
+   Owner would just be an ObjectId, not full user data
+*/
+   const user = await User.aggregate([
+      //stage 1: Match the cuurent user by ID
+      {
+         $match : {
+            _id : new mongoose.Types.ObjectId(req.user?._id) // yha hum req.user._id ko explicitly ObjectId me convert kar rahe hai using new mongoose.Types.ObjectId(), taki wo aggregation pipeline me sahi se match ho sake.
+         }
+      },
+      //stage 2: Lookup videos in video history
+      {
+         $lookup: {
+            from: "videos", //from video.model.js collection -> you see there "export const Video = mongoose.model("Video", videoSchema);" toh MongoDB me wo collection automatically "videos" ke naam se create ho jata hai (lowercase + plural), isliye hum yaha "videos" collection ke sath join kar rahe hai.
+            localField: "watchHistory", //field from user document (array of video IDs)
+            foreignField: "_id", //field from video document (video's unique ID)
+            as: "watchHistory",//name of new array field to store joined video documents
+
+             // SUB-PIPELINE: runs for EACH matched video document
+            pipeline: [ //yha hum $lookup ke andar ek aur pipeline define kar rahe hai, jisme hum video document ke owner field ko user document ke sath join kar rahe hai, taki hume video owner ki details bhi mil jaye.
+                
+               // Sub-stage 1: For each video, lookup its owner
+               {
+                  $lookup: {
+                     from: "users", //from user.model.js collection -> you see there "export const User = mongoose.model("User", userSchema);" toh MongoDB me wo collection automatically "users" ke naam se create ho jata hai (lowercase + plural), isliye hum yaha "users" collection ke sath join kar rahe hai.
+                     localField: "owner", //field from video document (owner's user ID)
+                     foreignField: "_id", //field from user document (user's unique ID)
+                     as: "owner", //name of new array field to store joined owner user document
+
+                     //--> After this sub-stage, each video document in watchHistory will have an "ownerDetails" array containing the owner's user document, which includes fields like username, avatar, fullName, etc.
+                     //but we don't want the entire user document, we just want specific fields like username and avatar, so we can add another stage here to project only those fields from the ownerDetails array.
+                     
+                      // NESTED SUB-PIPELINE: shape the owner data
+                      pipeline: [
+                        {
+                           $project: {
+                              fullName: 1,
+                              username: 1,
+                              avatar: 1
+                              // Only these 3 fields from owner
+                              // No password, email, etc.
+                           }
+                        }
+                      ]
+                        /*--> Why nested pipeline for owner details?
+                              → We only want specific fields from the owner (username, avatar, fullName)
+                              → If we don't use a nested pipeline, we would get the entire user document in ownerDetails, which includes sensitive information like password and email that we don't want to expose.
+                              → By using a nested pipeline with $project, we can shape the ownerDetails to include only the fields we want to return in our response, ensuring data privacy and optimizing the amount of data sent over the network. ✅     
+                              */ 
+                  }
+               },
+               // Sub-stage 2: Since $lookup returns an array for owner, we can use $addFields to simplify it to a single object (assuming one owner per video)
+               {
+                  $addFields: {
+                     owner: { // ye owner field kaunsa hai or kaha likha hai?
+                     // yha hum owner field ko overwrite kar rahe hai, taki wo ab ek array nahi rahe jisme owner document hai, balki directly owner document ho jaye, taki frontend me use karna easy ho jaye.
+                     /* ye owner field wahi hai jo humne $lookup me "as: owner" ke naam se define kiya hai, jisme owner user document stored hota hai as an array (kyunki $lookup hamesha array return karta hai), 
+                        toh yaha hum usi owner field ko overwrite kar rahe hai taki wo ab ek single object ho jaye instead of an array. */
+
+
+                        //we can use $first operator to get the first (and only) element from the owner array, since we expect only one owner per video. 
+                        // or we can also use $arrayElemAt operator to get the first element of the array. dono tarike se hum owner array me se single owner document ko extract kar sakte hai.
+                        $first: "$owner" // Since $lookup returns an array, we use $first to get the single owner document from the array
+                     }
+                  }
+               }
+
+               /*--> Result of this sub-pipeline:
+                     Each video document in watchHistory will now look like this:
+                     {
+                        _id: ObjectId("vid1"),
+                        title: "Video 1",
+                        thumbnail: "...",
+                        owner: {  // owner field now contains the full owner details instead of just the ObjectId
+                           fullName: "Owner Name",
+                           username: "ownerusername",
+                           avatar: "owneravatarurl"
+                        }
+                     }
+
+                     This way, when we return the watch history to the frontend, each video will already include the owner's username and avatar, so the frontend doesn't have to make additional requests to get that information.
+               */
+            ]
+         }
+      },
+
+
+   ])
+
+   return res
+   .status(200)
+   .json(
+      new ApiResponse(200, user[0].watchHistory, "Watch history fetched successfully")
+   )
+
+   /* 🔬 Sub-Pipeline Flow — Step by Step
+-->Stage 1 — $match user:
+      Input: All User documents
+         Match: _id = ObjectId("AAA") (logged-in user)
+      Output: ONE user document
+         {
+         _id: "AAA",
+         username: "aditya",
+         watchHistory: [ObjectId("vid1"), ObjectId("vid2"), ObjectId("vid3")]
+         }
+
+-->Stage 2 — $lookup with sub-pipeline:
+      For each ID in watchHistory array:
+         → Go to videos collection
+         → Find matching video document
+
+For EACH matched video, run sub-pipeline:
+
+  -->Video document BEFORE sub-pipeline:
+         {
+            _id: ObjectId("vid1"),
+            title: "Learn Node.js",
+            thumbnail: "url",
+            duration: 1200,
+            views: 5000,
+            owner: ObjectId("BBB")   ← just an ID!
+         }
+
+   Sub-stage 1 ($lookup owner):
+      → Goes to users collection
+      → Finds user with _id = ObjectId("BBB")
+      → With inner pipeline → projects only 3 fields
+      → owner becomes array:
+            owner: [
+               { fullName: "Hitesh", username: "hitesh", avatar: "url" }
+            ]
+
+  Sub-stage 2 ($addFields → $first):
+      → owner: { fullName: "Hitesh", username: "hitesh", avatar: "url" }
+      → Now owner is an OBJECT, not array ✅
+
+  Video document AFTER sub-pipeline:
+      {
+         _id: ObjectId("vid1"),
+         title: "Learn Node.js",
+         thumbnail: "url",
+         duration: 1200,
+         views: 5000,
+         owner: {                        ← clean object!
+            fullName: "Hitesh Choudhary",
+            username: "hitesh",
+            avatar: "https://cloudinary.com/..."
+         }
+      }
+
+Final result structure:
+// user is array (aggregate always returns array)
+            user = [
+            {
+               _id: "AAA",
+               username: "aditya",
+               watchHistory: [
+                  {
+                  _id: "vid1",
+                  title: "Learn Node.js",
+                  thumbnail: "...",
+                  duration: 1200,
+                  owner: {
+                     fullName: "Hitesh",
+                     username: "hitesh",
+                     avatar: "..."
+                  }
+                  },
+                  {
+                  _id: "vid2",
+                  title: "...",
+                  // ... same structure
+                  }
+               ]
+               // ...other user fields
+            }
+            ]
+
+   // We return only watchHistory:
+      user[0].watchHistory */
+})
 
 
 
@@ -1286,7 +1561,8 @@ export {
    updateAccountDetails,
    updateUserAvatar,
    updateUserCoverImage,
-   getUserChannelProfile
+   getUserChannelProfile,
+   getWatchHistory
 }
 
 

@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 
 
@@ -477,8 +478,19 @@ const logoutUser = asyncHandler(async (req, res) => {
    await User.findByIdAndUpdate( // "findByIdAndUpdate" method is used to find a user by their unique identifier (in this case, req.user._id) and update their document in the database.
       req.user._id,  // which user to find
       {
-         $set: { // $set operator is used to update the value of a field in a document. In this case, we are updating the "refreshToken" field of the user document with the specified user ID (req.user._id) and setting it to undefined.
-            refreshToken: undefined // is line se hum user ke refresh token ko undefined set kar denge, jisse wo future me use nahi kar sakta.
+      //    $set: { 
+                  // $set operator is used to update the value of a field in a document. In this case, we are updating the "refreshToken" field of the user document with the specified user ID (req.user._id) and setting it to undefined.
+            // refreshToken: undefined 
+                     // is line se hum user ke refresh token ko undefined set kar denge, jisse wo future me use nahi kar sakta.
+
+                     
+         //we now use $unset operator instead of $set to remove the refreshToken field from the user's document in the database,
+         //rather than just setting it to undefined. This way, we can ensure that the refresh token is completely removed from the user's record, enhancing security by preventing any potential misuse of an undefined token value.
+
+         $unset: {
+            refreshToken: 1 // The $unset operator is used to remove a field from a document in MongoDB. In this case, we are using 
+            // it to remove the "refreshToken" field from the user's document. By setting refreshToken: 1, we are indicating that 
+            // we want to remove this field from the document. This is a more secure approach than setting it to undefined, as it completely removes the field from the database, preventing any potential misuse of an undefined token value.
          }
       },
       {
@@ -555,8 +567,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       */
 
       // Step 4: Find user from decoded token
-      const user = await User.findById(decodedToken?.userId); /* This line is using the "User" model to find a user in the database based on the user ID that was extracted from the decoded refresh token.
-   - decodedToken?.userId: This is the user ID that was included in the payload of the refresh token when it was originally generated. 
+      const user = await User.findById(decodedToken?._id); /* This line is using the "User" model to find a user in the database based on the user ID that was extracted from the decoded refresh token.
+   - decodedToken?._id: This is the user ID that was included in the payload of the refresh token when it was originally generated. 
                               It is typically stored in the token to identify which user the token belongs to.
    
    - User.findById: This method is used to query the database and find a user document that matches the provided user ID. If a user with
@@ -568,7 +580,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       }
 
       // Step 6: If match → generate new access + refresh tokens
-      if (incomingRefreshToken !== user?.refreshToken) {  /* This line is comparing the "refresh token" that was sent by the client 
+      if (incomingRefreshToken !== user?.refreshToken?.trim()) {  /* This line is comparing the "refresh token" that was sent by the client 
             (incomingRefreshToken) with the refresh token that is stored in the "user's" document in the database (user.refreshToken).
    
       -->   If the tokens do not match, it means that the incoming refresh token is invalid or has been tampered with, and we should not generate new tokens 
@@ -585,7 +597,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
          secure: true
       };
 
-      const { accessToken, newRefreshToken } = await generateAccessAndRefreshTokens(user._id);
+      const { accessToken, newRefreshToken } = await generateAccessAndRefereshTokens(user._id);
 
       // Step 7: Send new tokens in cookies and response
       return res.status(200)
@@ -745,18 +757,22 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Full name and email are required");
    }
 
-   User.findByIdAndUpdate(
+   const updatedUser = await User.findByIdAndUpdate(
       req.user._id,  // yha hum user ke unique identifier (req.user._id) ke basis par uske document ko database me find kar rahe hai, aur usko update kar rahe hai. 
       {
-         $set: { fullName, email } // yha hum $set operator ka use kar rahe hai, jisme hum user ke full name aur email ko update kar rahe hai. 
+         $set: { fullName,
+             email : email } // yha hum $set operator ka use kar rahe hai, jisme hum user ke full name aur email ko update kar rahe hai. 
          // $set operator MongoDB me use hota hai kisi field ki value ko update karne ke liye.
       },
       { new: true }
    ).select("-password"); // yha hum select method ka use kar rahe hai, jisme hum password ko exclude kar rahe hai, taki wo response me na aaye.
 
+   if (!updatedUser) {
+   throw new ApiError(404, "User not found");
+   }
    return res
       .status(200).
-      json(new ApiResponse(200, {}, "Account details updated successfully"))
+      json(new ApiResponse(200, updatedUser, "Account details updated successfully"))
 
 })
 
